@@ -3,7 +3,9 @@ edition = "2021"
 name = "aoc-2021"
 publish = false
 version = "0.1.0"
+
 [dependencies]
 aoc-runner = "*"
 aoc-runner-derive = "*"
+enum-utils = "*"
 rayon = "*"
