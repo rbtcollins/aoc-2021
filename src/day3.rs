@@ -1,14 +1,18 @@
+use std::rc::Rc;
 use std::str;
 
 use aoc_runner_derive::{aoc, aoc_generator};
 
 #[aoc_generator(day3)]
-fn generate(input: &str) -> Vec<Vec<u8>> {
-    input.lines().map(|s| s.as_bytes().to_owned()).collect()
+fn generate(input: &str) -> Vec<Rc<Vec<u8>>> {
+    input
+        .lines()
+        .map(|s| Rc::new(s.as_bytes().to_owned()))
+        .collect()
 }
 
 #[aoc(day3, part1)]
-fn part1(input: &Vec<Vec<u8>>) -> usize {
+fn part1(input: &Vec<Rc<Vec<u8>>>) -> usize {
     let mut totals = vec![];
     for _ in 0..input[0].len() {
         totals.push(0);
@@ -35,7 +39,7 @@ fn part1(input: &Vec<Vec<u8>>) -> usize {
     gamma * epsilon
 }
 
-fn split_on_bit(input: &Vec<Vec<u8>>, pos: usize) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
+fn split_on_bit(input: &Vec<Rc<Vec<u8>>>, pos: usize) -> (Vec<Rc<Vec<u8>>>, Vec<Rc<Vec<u8>>>) {
     let mut zeros = vec![];
     let mut ones = vec![];
     for diagnostic in input {
@@ -48,27 +52,31 @@ fn split_on_bit(input: &Vec<Vec<u8>>, pos: usize) -> (Vec<Vec<u8>>, Vec<Vec<u8>>
 }
 
 #[aoc(day3, part2)]
-fn part2(input: &Vec<Vec<u8>>) -> usize {
-    // assume it will terminate
+fn part2(input: &Vec<Rc<Vec<u8>>>) -> usize {
     // oxy: most common, tie take 1
     // co2: least common. tie take 0
-    let (zeros, ones) = split_on_bit(input, 0);
-    let (mut oxy, mut co2) = match zeros.len() as isize - ones.len() as isize {
-        i if i > 0 => (zeros, ones),
-        i if i < 0 => (ones, zeros),
-        _ => (ones, zeros),
+    let (mut oxy, mut co2) = {
+        let (zeros, ones) = split_on_bit(input, 0);
+        match zeros.len() as isize - ones.len() as isize {
+            i if i > 0 => (zeros, ones),
+            i if i < 0 => (ones, zeros),
+            _ => (ones, zeros),
+        }
     };
     let mut pos = 1;
     loop {
         if oxy.len() == 1 {
             break;
         }
-        let (zeros, ones) = split_on_bit(&oxy, pos);
-        oxy = match zeros.len() as isize - ones.len() as isize {
-            i if i > 0 => (zeros),
-            i if i < 0 => (ones),
-            _ => (ones),
+        let mut new_oxy = {
+            let (zeros, ones) = split_on_bit(&mut oxy, pos);
+            match zeros.len() as isize - ones.len() as isize {
+                i if i > 0 => (zeros),
+                i if i < 0 => (ones),
+                _ => (ones),
+            }
         };
+        std::mem::swap(&mut new_oxy, &mut oxy);
         pos += 1;
     }
     // we could factor these three similar things but meh.
