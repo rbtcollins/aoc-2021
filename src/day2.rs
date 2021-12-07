@@ -21,7 +21,7 @@ fn generate(input: &str) -> Vec<(Direction, usize)> {
 fn part1(input: &[(Direction, usize)]) -> usize {
     let mut depth = 0;
     let mut distance = 0;
-    for (direction, amount) in input.into_iter() {
+    for (direction, amount) in input.iter() {
         match direction {
             Direction::forward => distance += amount,
             Direction::up => depth -= amount,
@@ -36,7 +36,7 @@ fn part2(input: &[(Direction, usize)]) -> usize {
     let mut depth = 0;
     let mut distance = 0;
     let mut aim = 0;
-    for (direction, amount) in input.into_iter() {
+    for (direction, amount) in input.iter() {
         match direction {
             Direction::forward => {
                 distance += amount;

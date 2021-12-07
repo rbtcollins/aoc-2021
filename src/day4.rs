@@ -17,30 +17,27 @@ struct Game {
 
 #[aoc_generator(day4)]
 fn generate(input: &str) -> Game {
-    let mut result = Game::default();
-    result.numbers = input
-        .lines()
-        .take(1)
-        .flat_map(|l| l.split(','))
-        .flat_map(|s| s.parse())
-        .collect();
-    result.boards = input
-        .lines()
-        .skip(1)
-        .chunks(6)
-        .into_iter()
-        .flat_map(|lines| lines.skip(1))
-        .map(|l| l.split(' ').flat_map(|s| s.parse()).collect::<Vec<usize>>())
-        .chunks(5)
-        .into_iter()
-        .map(|rows| Board {
-            rows: rows.collect::<Vec<Vec<usize>>>(),
-        })
-        .collect();
-    // for board in &mut result.boards {
-    //     board.transpose();
-    // }
-    result
+    Game {
+        numbers: input
+            .lines()
+            .take(1)
+            .flat_map(|l| l.split(','))
+            .flat_map(|s| s.parse())
+            .collect(),
+        boards: input
+            .lines()
+            .skip(1)
+            .chunks(6)
+            .into_iter()
+            .flat_map(|lines| lines.skip(1))
+            .map(|l| l.split(' ').flat_map(|s| s.parse()).collect::<Vec<usize>>())
+            .chunks(5)
+            .into_iter()
+            .map(|rows| Board {
+                rows: rows.collect::<Vec<Vec<usize>>>(),
+            })
+            .collect(),
+    }
 }
 
 impl Game {
@@ -51,30 +48,6 @@ impl Game {
             }
         }
         None
-    }
-    fn dump(&self, drawn: &HashSet<usize>) {
-        println!(
-            "{}: {:?} ",
-            drawn.len(),
-            drawn.iter().sorted().collect::<Vec<&usize>>()
-        );
-        for board in &self.boards {
-            let mut rows = board.rows.clone();
-            for row in &mut rows {
-                row.sort_unstable();
-            }
-            println!("rows: {:?}", rows);
-            let mut cols = board.columns().collect::<Vec<Vec<usize>>>();
-            for col in &mut cols {
-                col.sort_unstable();
-            }
-            println!("cols: {:?}", cols);
-            println!(
-                "non: {:?}",
-                board.unmarked(drawn).sorted().collect::<Vec<&usize>>()
-            );
-            println!("---");
-        }
     }
 }
 
@@ -103,15 +76,6 @@ impl Board {
             .iter()
             .flat_map(|r| r.iter())
             .filter(|n| !drawn.contains(n))
-    }
-    fn transpose(&mut self) {
-        for row in 0..5 {
-            for col in 0..row {
-                let temp = self.rows[row][col];
-                self.rows[row][col] = self.rows[col][row];
-                self.rows[col][row] = temp;
-            }
-        }
     }
 }
 

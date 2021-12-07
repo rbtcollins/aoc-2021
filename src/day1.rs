@@ -6,7 +6,7 @@ fn generate(input: &[u8]) -> Vec<u32> {
     let mut result = Vec::<u32>::new();
     let mut current: u32 = 0;
     for byte in input.iter() {
-        if byte < &b'0' || byte > &b'9' {
+        if !(&b'0'..=&b'9').contains(&byte) {
             result.push(current);
             current = 0;
             continue;
@@ -53,7 +53,7 @@ fn part2_for(input: &[u32]) -> usize {
     let mut count = 0;
     for pos in 3..input.len() {
         if input[pos] > input[pos - 3] {
-            count = count + 1;
+            count += 1;
         }
     }
     count

@@ -12,11 +12,8 @@ fn generate(input: &str) -> Vec<Rc<Vec<u8>>> {
 }
 
 #[aoc(day3, part1)]
-fn part1(input: &Vec<Rc<Vec<u8>>>) -> usize {
-    let mut totals = vec![];
-    for _ in 0..input[0].len() {
-        totals.push(0);
-    }
+fn part1(input: &[Rc<Vec<u8>>]) -> usize {
+    let mut totals = vec![0; input[0].len()];
     for diagnostic in input {
         for pos in 0..diagnostic.len() {
             let val: i8 = (diagnostic[pos] - b'0').try_into().unwrap();
@@ -39,7 +36,7 @@ fn part1(input: &Vec<Rc<Vec<u8>>>) -> usize {
     gamma * epsilon
 }
 
-fn split_on_bit(input: &Vec<Rc<Vec<u8>>>, pos: usize) -> (Vec<Rc<Vec<u8>>>, Vec<Rc<Vec<u8>>>) {
+fn split_on_bit(input: &[Rc<Vec<u8>>], pos: usize) -> (Vec<Rc<Vec<u8>>>, Vec<Rc<Vec<u8>>>) {
     let mut zeros = vec![];
     let mut ones = vec![];
     for diagnostic in input {
@@ -52,7 +49,7 @@ fn split_on_bit(input: &Vec<Rc<Vec<u8>>>, pos: usize) -> (Vec<Rc<Vec<u8>>>, Vec<
 }
 
 #[aoc(day3, part2)]
-fn part2(input: &Vec<Rc<Vec<u8>>>) -> usize {
+fn part2(input: &[Rc<Vec<u8>>]) -> usize {
     // oxy: most common, tie take 1
     // co2: least common. tie take 0
     let (mut oxy, mut co2) = {
@@ -69,7 +66,7 @@ fn part2(input: &Vec<Rc<Vec<u8>>>) -> usize {
             break;
         }
         let mut new_oxy = {
-            let (zeros, ones) = split_on_bit(&mut oxy, pos);
+            let (zeros, ones) = split_on_bit(&oxy, pos);
             match zeros.len() as isize - ones.len() as isize {
                 i if i > 0 => (zeros),
                 i if i < 0 => (ones),
