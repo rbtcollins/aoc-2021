@@ -70,6 +70,7 @@ fn part2(input: &Input) -> isize {
     let mut left_v = 0;
     let mut current_i = 0;
     let mut current_cost = right_v;
+
     for (new_pos, count) in groups.iter().enumerate() {
         let new_pos = new_pos as isize;
         let step = new_pos - pos;
