@@ -1,53 +1,43 @@
 use aoc_runner_derive::{aoc, aoc_generator};
 
-#[derive(Default, Clone, Debug)]
-struct Input {
-    /// index=(days+pos %7) , value=number of fish.
-    fish: [usize; 9],
-    zero: usize,
-}
-
-impl Input {
-    #[inline]
-    fn step(&mut self) {
-        self.zero = (self.zero + 1) % 7;
-        // move the two slow cases: 7's become 6, 8's become 7's.
-        let pos_6 = (self.zero + 6) % 7;
-        let new_fish = self.fish[pos_6];
-        self.fish[pos_6] += self.fish[7];
-        self.fish[7] = self.fish[8];
-        // breeding - original 6's -> 8's.
-        self.fish[8] = new_fish;
-    }
-}
-
 #[aoc_generator(day6)]
-fn generate(input: &str) -> Input {
-    let mut result = Input {
-        fish: [0; 9],
-        zero: 0,
-    };
+fn generate(input: &str) -> [u64; 9] {
+    // index=(days+pos %7) , value=number of fish.
+    let mut result = [0; 9];
     for fish in input.split(',').flat_map(|s| s.parse::<usize>()) {
-        result.fish[fish] += 1;
+        result[fish] += 1;
     }
     result
 }
 
-fn run_sim(input: &Input, steps: usize) -> usize {
-    let mut state = input.clone();
+fn run_sim(input: &[u64; 9], steps: usize) -> u64 {
+    // load into register-capable vars
+    let [mut t0, mut t1, mut t2, mut t3, mut t4, mut t5, mut t6, mut t7, mut t8] = input;
+    let mut tmp: u64;
     for _ in 0..steps {
-        state.step();
+        // advance time
+        tmp = t0;
+        t0 = t1;
+        t1 = t2;
+        t2 = t3;
+        t3 = t4;
+        t4 = t5;
+        t5 = t6;
+        t6 = tmp + t7;
+        t7 = t8;
+        t8 = tmp;
     }
-    state.fish.iter().sum()
+    // return
+    t0 + t1 + t2 + t3 + t4 + t5 + t6 + t7 + t8
 }
 
 #[aoc(day6, part1)]
-fn part1(input: &Input) -> usize {
+fn part1(input: &[u64; 9]) -> u64 {
     run_sim(input, 80)
 }
 
 #[aoc(day6, part2)]
-fn part2(input: &Input) -> usize {
+fn part2(input: &[u64; 9]) -> u64 {
     run_sim(input, 256)
 }
 
