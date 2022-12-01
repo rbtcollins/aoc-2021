@@ -1,60 +1,44 @@
+use std::io::{self, BufRead};
+
 use aoc_runner_derive::{aoc, aoc_generator};
-use rayon::prelude::*;
+use itertools::Itertools;
 
 #[aoc_generator(day1)]
-fn generate(input: &[u8]) -> Vec<u32> {
-    let mut result = Vec::<u32>::new();
-    let mut current: u32 = 0;
-    for byte in input.iter() {
-        if !(&b'0'..=&b'9').contains(&byte) {
-            result.push(current);
-            current = 0;
-            continue;
-        }
-        let byte_value: u32 = (byte - b'0').into();
-        if current != 0 {
-            current = current * 10 + byte_value;
-        } else {
-            current = byte_value;
-        }
-    }
-    if current != 0 {
-        result.push(current);
-    }
-    result
+fn generate(input: &[u8]) -> io::Result<Vec<Option<u32>>> {
+    input
+        .lines()
+        .map_ok(|l| -> Result<Option<u32>, std::num::ParseIntError> {
+            Ok(if !l.is_empty() {
+                Some(l.parse::<u32>()?)
+            } else {
+                None
+            })
+        })
+        .flatten_ok()
+        .collect()
 }
 
 #[aoc(day1, part1)]
-fn part1(input: &[u32]) -> usize {
-    input
-        .windows(2)
-        .filter(|window| window[0] < window[1])
-        .count()
-}
-
-#[aoc(day1, part1, rayon)]
-fn part1_rayon(input: &[u32]) -> usize {
-    input
-        .par_windows(2)
-        .filter(|window| window[0] < window[1])
-        .count()
+fn part1(input: &[Option<u32>]) -> u32 {
+    let mut input = input.iter().peekable();
+    let mut largest = 0;
+    while input.peek().is_some() {
+        largest = std::cmp::max(
+            input.by_ref().take_while(|i| i.is_some()).flatten().sum(),
+            largest,
+        );
+    }
+    largest
 }
 
 #[aoc(day1, part2)]
-fn part2(input: &[u32]) -> usize {
-    input
-        .windows(4)
-        .filter(|window| window[0] < window[3])
-        .count()
-}
-
-#[aoc(day1, part2, rev)]
-fn part2_for(input: &[u32]) -> usize {
-    let mut count = 0;
-    for pos in 3..input.len() {
-        if input[pos] > input[pos - 3] {
-            count += 1;
-        }
+fn part2(input: &[Option<u32>]) -> u32 {
+    let mut input = input.iter().peekable();
+    let mut sizes = vec![];
+    while input.peek().is_some() {
+        sizes.push(input.by_ref().take_while(|i| i.is_some()).flatten().sum());
     }
-    count
+    sizes.sort();
+    sizes.reverse();
+    sizes.iter().take(3).sum()
 }
