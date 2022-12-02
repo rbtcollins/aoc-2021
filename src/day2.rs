@@ -106,63 +106,65 @@ fn outcome(elf: &Elf, mine: &RPS) -> usize {
 
 #[aoc_generator(day2)]
 fn generate(input: &str) -> String {
-    input.to_owned()
+    let mut owned = input.to_owned();
+    if !input.ends_with('\n') {
+        owned.push('\n');
+    }
+    owned
 }
 
 #[aoc(day2, part1)]
 fn part1(input: &str) -> usize {
+    let mut lookup = Vec::with_capacity(36);
+    lookup.resize(36, 0);
+
+    lookup[0] = 4;
+    lookup[16] = 8;
+    lookup[32] = 3;
+    lookup[1] = 1;
+    lookup[17] = 5;
+    lookup[33] = 9;
+    lookup[2] = 7;
+    lookup[18] = 2;
+    lookup[34] = 6;
     input
         .as_bytes()
-        .chunks(4)
-        .map(|s| match s {
-            b"A X\n" => 4,
-            b"A Y\n" => 8,
-            b"A Z\n" => 3,
-            b"B X\n" => 1,
-            b"B Y\n" => 5,
-            b"B Z\n" => 9,
-            b"C X\n" => 7,
-            b"C Y\n" => 2,
-            b"C Z\n" => 6,
-            b"A X" => 4,
-            b"A Y" => 8,
-            b"A Z" => 3,
-            b"B X" => 1,
-            b"B Y" => 5,
-            b"B Z" => 9,
-            b"C X" => 7,
-            b"C Y" => 2,
-            b"C Z" => 6,
-            v => unreachable!("{:?}", v),
+        .chunks_exact(4)
+        .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
+        .map(|v| {
+            // low order
+            let elf = ((v & 0x000000ff) >> 0) as usize - 'A' as usize;
+            // high order
+            let advice = ((v & 0x00ff0000) >> 12) as usize - (('X' as usize) << 4);
+            unsafe { lookup.get_unchecked(elf | advice) }
         })
         .sum()
 }
 
 #[aoc(day2, part2)]
 fn part2(input: &str) -> usize {
+    let mut lookup = Vec::with_capacity(36);
+    lookup.resize(36, 0);
+
+    lookup[0] = 3;
+    lookup[16] = 4;
+    lookup[32] = 8;
+    lookup[1] = 1;
+    lookup[17] = 5;
+    lookup[33] = 9;
+    lookup[2] = 2;
+    lookup[18] = 6;
+    lookup[34] = 7;
     input
         .as_bytes()
-        .chunks(4)
-        .map(|s| match s {
-            b"A X\n" => 3,
-            b"A Y\n" => 4,
-            b"A Z\n" => 8,
-            b"B X\n" => 1,
-            b"B Y\n" => 5,
-            b"B Z\n" => 9,
-            b"C X\n" => 2,
-            b"C Y\n" => 6,
-            b"C Z\n" => 7,
-            b"A X" => 3,
-            b"A Y" => 4,
-            b"A Z" => 8,
-            b"B X" => 1,
-            b"B Y" => 5,
-            b"B Z" => 9,
-            b"C X" => 2,
-            b"C Y" => 6,
-            b"C Z" => 7,
-            v => unreachable!("{:?}", v),
+        .chunks_exact(4)
+        .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
+        .map(|v| {
+            // low order
+            let elf = ((v & 0x000000ff) >> 0) as usize - 'A' as usize;
+            // high order
+            let advice = ((v & 0x00ff0000) >> 12) as usize - (('X' as usize) << 4);
+            unsafe { lookup.get_unchecked(elf | advice) }
         })
         .sum()
 }
@@ -228,31 +230,60 @@ C Z
     }
 
     #[test]
-    fn gen_part1() {
-        for elf in [Elf::A, Elf::B, Elf::C] {
-            for advice in [Advice::X, Advice::Y, Advice::Z] {
-                let mine = RPS::from(&advice);
-                eprintln!(
-                    "b\"{} {}\\n\" => {},",
-                    elf,
-                    advice,
-                    mine.shape_score() + outcome(&elf, &mine)
-                );
-            }
+    fn experiment() {
+        for v in "A X\n"
+            .as_bytes()
+            .chunks_exact(4)
+            .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
+        {
+            eprintln!(
+                "{} {} {} {} {} {}",
+                v,
+                'A' as u8,
+                ((v & 0xff000000) >> 24) as u8, // - 'A' as u8,
+                ((v & 0x00ff0000) >> 16) as u8 - 'X' as u8,
+                ((v & 0x0000ff00) >> 8) as u8, // - 'X' as u8,
+                ((v & 0x000000ff) >> 0) as u8 - 'A' as u8
+            );
         }
-        for elf in [Elf::A, Elf::B, Elf::C] {
-            for advice in [Advice::X, Advice::Y, Advice::Z] {
-                let mine = RPS::from(&advice);
+    }
 
+    #[test]
+    fn gen_part1() {
+        // match eprintln!(
+        //         "{} {} {} {} {} {}",
+        //         v,
+        //         'A' as u8,
+        //         ((v & 0xff000000) >> 24) as u8, // - 'A' as u8,
+        //         ((v & 0x00ff0000) >> 16) as u8 - 'X' as u8,
+        //         ((v & 0x0000ff00) >> 8) as u8, // - 'X' as u8,
+        //         ((v & 0x000000ff) >> 0) as u8 - 'A' as u8
+        //     );
+        // Vec::default().push
+        eprintln!(
+            "let mut lookup=Vec::with_capacity(36);
+lookup.resize(36, 0);
+"
+        );
+        // // low order
+        // let elf = ((v & 0x000000ff) >> 0) as u8 - 'A' as u8;
+        // // high order
+        // let advice = ((v & 0x00ff0000) >> 12) as u8 - (('X' as u8) << 4);
+        // match elf|advice {{
+        // "
+        //         );
+        for elf in [Elf::A, Elf::B, Elf::C] {
+            for advice in [Advice::X, Advice::Y, Advice::Z] {
+                let mine = RPS::from(&advice);
                 eprintln!(
-                    "b\"{} {}\" => {},",
-                    elf,
-                    advice,
+                    "lookup[{}] = {};",
+                    (elf.clone() as u8) | ((advice as u8) << 4),
                     mine.shape_score() + outcome(&elf, &mine)
                 );
             }
         }
-        eprint!("_ => unreachable!(),");
+        // eprintln!("v => unreachable!(\"{{}}\", v)");
+        // eprintln!("}}");
     }
 
     #[test]
@@ -261,24 +292,12 @@ C Z
             for advice in [Advice::X, Advice::Y, Advice::Z] {
                 let mine = &RPS::choose_shape(&elf, &advice);
                 eprintln!(
-                    "b\"{} {}\\n\" => {},",
-                    elf,
-                    advice,
+                    "lookup[{}] = {};",
+                    (elf.clone() as u8) | ((advice as u8) << 4),
                     mine.shape_score() + outcome(&elf, mine)
                 );
             }
         }
-        for elf in [Elf::A, Elf::B, Elf::C] {
-            for advice in [Advice::X, Advice::Y, Advice::Z] {
-                let mine = &RPS::choose_shape(&elf, &advice);
-                eprintln!(
-                    "b\"{} {}\" => {},",
-                    elf,
-                    advice,
-                    mine.shape_score() + outcome(&elf, mine)
-                );
-            }
-        }
-        eprint!("_ => unreachable!(),");
+        // eprint!("_ => unreachable!(),");
     }
 }
