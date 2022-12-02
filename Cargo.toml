@@ -10,3 +10,5 @@ aoc-runner-derive = "*"
 enum-utils = "*"
 itertools = "*"
 rayon = "*"
+serde = { version = "1.0", features = ["derive"] }
+serde_plain = "*"

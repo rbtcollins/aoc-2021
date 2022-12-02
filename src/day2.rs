@@ -1,18 +1,22 @@
 use aoc_runner_derive::{aoc, aoc_generator};
+use serde::Serialize;
+use serde_plain::derive_display_from_serialize;
 
-#[derive(Clone, Debug, PartialEq, enum_utils::FromStr)]
+#[derive(Clone, Debug, PartialEq, enum_utils::FromStr, Serialize)]
 enum Elf {
     A,
     B,
     C,
 }
+derive_display_from_serialize!(Elf);
 
-#[derive(Debug, PartialEq, enum_utils::FromStr)]
+#[derive(Debug, PartialEq, enum_utils::FromStr, Serialize)]
 enum Advice {
     X,
     Y,
     Z,
 }
+derive_display_from_serialize!(Advice);
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 enum RPS {
@@ -54,6 +58,7 @@ impl TryFrom<&i32> for RPS {
     }
 }
 
+#[cfg(test)]
 impl RPS {
     fn choose_shape(elf: &Elf, advice: &Advice) -> Self {
         // Advice::X - lose, then draw and win
@@ -85,37 +90,79 @@ impl RPS {
 // R v P = 0 vs 1 = 1-0 + 1 = 2
 // P v S = 1 vs 2 = 2-1 + 1 = 2
 // S v R = 2 vs 0 = 0-1 + 1 = 2
+#[cfg(test)]
 fn outcome(elf: &Elf, mine: &RPS) -> usize {
     3 * ((3 + 1 + mine.clone() as usize - RPS::from(elf) as usize) % 3)
 }
 
+// #[aoc_generator(day2)]
+// fn generate(input: &str) -> Vec<(Elf, Advice)> {
+//     input
+//         .lines()
+//         .flat_map(|line| line.split_once(' '))
+//         .map(|(a, b)| (a.parse().unwrap(), b.parse().unwrap()))
+//         .collect()
+// }
+
 #[aoc_generator(day2)]
-fn generate(input: &str) -> Vec<(Elf, Advice)> {
-    input
-        .lines()
-        .flat_map(|line| line.split_once(' '))
-        .map(|(a, b)| (a.parse().unwrap(), b.parse().unwrap()))
-        .collect()
+fn generate(input: &str) -> String {
+    input.to_owned()
 }
 
 #[aoc(day2, part1)]
-fn part1(input: &[(Elf, Advice)]) -> usize {
+fn part1(input: &str) -> usize {
     input
-        .iter()
-        .map(|(elf, advice)| {
-            let mine = RPS::from(advice);
-            mine.shape_score() + outcome(elf, &mine)
+        .as_bytes()
+        .chunks(4)
+        .map(|s| match s {
+            b"A X\n" => 4,
+            b"A Y\n" => 8,
+            b"A Z\n" => 3,
+            b"B X\n" => 1,
+            b"B Y\n" => 5,
+            b"B Z\n" => 9,
+            b"C X\n" => 7,
+            b"C Y\n" => 2,
+            b"C Z\n" => 6,
+            b"A X" => 4,
+            b"A Y" => 8,
+            b"A Z" => 3,
+            b"B X" => 1,
+            b"B Y" => 5,
+            b"B Z" => 9,
+            b"C X" => 7,
+            b"C Y" => 2,
+            b"C Z" => 6,
+            v => unreachable!("{:?}", v),
         })
         .sum()
 }
 
 #[aoc(day2, part2)]
-fn part2(input: &[(Elf, Advice)]) -> usize {
+fn part2(input: &str) -> usize {
     input
-        .iter()
-        .map(|(elf, advice)| {
-            let mine = &RPS::choose_shape(elf, advice);
-            mine.shape_score() + outcome(elf, mine)
+        .as_bytes()
+        .chunks(4)
+        .map(|s| match s {
+            b"A X\n" => 3,
+            b"A Y\n" => 4,
+            b"A Z\n" => 8,
+            b"B X\n" => 1,
+            b"B Y\n" => 5,
+            b"B Z\n" => 9,
+            b"C X\n" => 2,
+            b"C Y\n" => 6,
+            b"C Z\n" => 7,
+            b"A X" => 3,
+            b"A Y" => 4,
+            b"A Z" => 8,
+            b"B X" => 1,
+            b"B Y" => 5,
+            b"B Z" => 9,
+            b"C X" => 2,
+            b"C Y" => 6,
+            b"C Z" => 7,
+            v => unreachable!("{:?}", v),
         })
         .sum()
 }
@@ -178,5 +225,60 @@ C Z
     #[test]
     fn test_choose_shape() {
         assert_eq!(RPS::Rock, RPS::choose_shape(&Elf::A, &Advice::Y));
+    }
+
+    #[test]
+    fn gen_part1() {
+        for elf in [Elf::A, Elf::B, Elf::C] {
+            for advice in [Advice::X, Advice::Y, Advice::Z] {
+                let mine = RPS::from(&advice);
+                eprintln!(
+                    "b\"{} {}\\n\" => {},",
+                    elf,
+                    advice,
+                    mine.shape_score() + outcome(&elf, &mine)
+                );
+            }
+        }
+        for elf in [Elf::A, Elf::B, Elf::C] {
+            for advice in [Advice::X, Advice::Y, Advice::Z] {
+                let mine = RPS::from(&advice);
+
+                eprintln!(
+                    "b\"{} {}\" => {},",
+                    elf,
+                    advice,
+                    mine.shape_score() + outcome(&elf, &mine)
+                );
+            }
+        }
+        eprint!("_ => unreachable!(),");
+    }
+
+    #[test]
+    fn gen_part2() {
+        for elf in [Elf::A, Elf::B, Elf::C] {
+            for advice in [Advice::X, Advice::Y, Advice::Z] {
+                let mine = &RPS::choose_shape(&elf, &advice);
+                eprintln!(
+                    "b\"{} {}\\n\" => {},",
+                    elf,
+                    advice,
+                    mine.shape_score() + outcome(&elf, mine)
+                );
+            }
+        }
+        for elf in [Elf::A, Elf::B, Elf::C] {
+            for advice in [Advice::X, Advice::Y, Advice::Z] {
+                let mine = &RPS::choose_shape(&elf, &advice);
+                eprintln!(
+                    "b\"{} {}\" => {},",
+                    elf,
+                    advice,
+                    mine.shape_score() + outcome(&elf, mine)
+                );
+            }
+        }
+        eprint!("_ => unreachable!(),");
     }
 }
