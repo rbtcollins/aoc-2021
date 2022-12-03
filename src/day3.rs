@@ -1,73 +1,61 @@
 use aoc_runner_derive::{aoc, aoc_generator};
-use itertools::{EitherOrBoth, Itertools};
+
+const fn char_to_bit(char: u8) -> u64 {
+    0x1 << (if char > b'Z' {
+        char - b'a' + 1 // a -> 1
+    } else {
+        char - b'A' + 27 // A -> 27
+    })
+}
+
+const fn gen_lookup() -> [u64; 256] {
+    let mut lookup = [0u64; 256];
+    let mut i = b'a';
+    while i <= b'z' {
+        lookup[i as usize] = char_to_bit(i);
+        i += 1;
+    }
+    i = b'A';
+    while i <= b'Z' {
+        lookup[i as usize] = char_to_bit(i);
+        i += 1;
+    }
+    lookup
+}
+
+const LOOKUP: [u64; 256] = gen_lookup();
 
 #[aoc_generator(day3)]
-fn generate(input: &str) -> Vec<Vec<Vec<u8>>> {
+fn generate(input: &str) -> Vec<Vec<u64>> {
     input
         .lines()
-        .map(|l| {
-            l.as_bytes()
-                .chunks(l.len() >> 1)
-                .map(|c| {
-                    c.iter()
-                        .map(|b| {
-                            if *b > b'Z' {
-                                b - b'a' + 1 // a -> 1
-                            } else {
-                                b - b'A' + 27 // A -> 27
-                            }
-                        })
-                        .collect()
-                })
-                .collect()
-        })
+        .map(|l| l.as_bytes().iter().map(|b| LOOKUP[*b as usize]).collect())
         .collect()
 }
 
 #[aoc(day3, part1)]
-fn part1(input: &[Vec<Vec<u8>>]) -> usize {
+fn part1(input: &[Vec<u64>]) -> u32 {
     input
         .iter()
         .map(|rs| {
-            rs[0]
-                .iter()
-                .sorted()
-                .merge_join_by(rs[1].iter().sorted(), |i, j| (*i).cmp(*j))
-                .filter_map(|m| match m {
-                    EitherOrBoth::Both(i, _) => Some(*i as usize),
-                    _ => None,
-                })
-                .unique()
-                .sum::<usize>()
+            let (l, r) = rs.split_at(rs.len() >> 1);
+
+            let common = l.iter().fold(0u64, |val, item| val | item)
+                & r.iter().fold(0u64, |val, item| val | item);
+            common.trailing_zeros()
         })
         .sum()
 }
 
 #[aoc(day3, part2)]
-fn part2(input: &[Vec<Vec<u8>>]) -> usize {
+fn part2(input: &[Vec<u64>]) -> u32 {
     input
         .chunks_exact(3)
         .map(|c| {
-            c[0][0]
-                .iter()
-                .chain(c[0][1].iter())
-                .sorted()
-                .merge_join_by(c[1][0].iter().chain(c[1][1].iter()).sorted(), |i, j| {
-                    (*i).cmp(*j)
-                })
-                .filter_map(|m| match m {
-                    EitherOrBoth::Both(i, _) => Some(*i),
-                    _ => None,
-                })
-                .merge_join_by(c[2][0].iter().chain(c[2][1].iter()).sorted(), |i, j| {
-                    (*i).cmp(*j)
-                })
-                .filter_map(|m| match m {
-                    EitherOrBoth::Both(i, _) => Some(i as usize),
-                    _ => None,
-                })
-                .unique()
-                .sum::<usize>()
+            let common = c[0].iter().fold(0u64, |val, item| val | item)
+                & c[1].iter().fold(0u64, |val, item| val | item)
+                & c[2].iter().fold(0u64, |val, item| val | item);
+            common.trailing_zeros()
         })
         .sum()
 }
