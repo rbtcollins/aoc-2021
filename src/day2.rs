@@ -19,50 +19,50 @@ enum Advice {
 derive_display_from_serialize!(Advice);
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
-enum RPS {
+enum RockPaperScissors {
     Rock = 0,
     Paper = 1,
     Scissors = 2,
 }
 
-impl From<&Advice> for RPS {
+impl From<&Advice> for RockPaperScissors {
     fn from(value: &Advice) -> Self {
         match value {
-            Advice::X => RPS::Rock,
-            Advice::Y => RPS::Paper,
-            Advice::Z => RPS::Scissors,
+            Advice::X => RockPaperScissors::Rock,
+            Advice::Y => RockPaperScissors::Paper,
+            Advice::Z => RockPaperScissors::Scissors,
         }
     }
 }
 
-impl From<&Elf> for RPS {
+impl From<&Elf> for RockPaperScissors {
     fn from(value: &Elf) -> Self {
         match value {
-            Elf::A => RPS::Rock,
-            Elf::B => RPS::Paper,
-            Elf::C => RPS::Scissors,
+            Elf::A => RockPaperScissors::Rock,
+            Elf::B => RockPaperScissors::Paper,
+            Elf::C => RockPaperScissors::Scissors,
         }
     }
 }
 
-impl TryFrom<&i32> for RPS {
+impl TryFrom<&i32> for RockPaperScissors {
     type Error = String;
 
     fn try_from(value: &i32) -> Result<Self, Self::Error> {
         Ok(match value {
-            0 => RPS::Rock,
-            1 => RPS::Paper,
-            2 => RPS::Scissors,
+            0 => RockPaperScissors::Rock,
+            1 => RockPaperScissors::Paper,
+            2 => RockPaperScissors::Scissors,
             _ => return Err("Bad value".into()),
         })
     }
 }
 
 #[cfg(test)]
-impl RPS {
+impl RockPaperScissors {
     fn choose_shape(elf: &Elf, advice: &Advice) -> Self {
         // Advice::X - lose, then draw and win
-        let offset = RPS::from(advice) as i32 - 1;
+        let offset = RockPaperScissors::from(advice) as i32 - 1;
         let result = (elf.clone() as i32 + offset + 3) % 3;
         Self::try_from(&result).unwrap()
     }
@@ -91,8 +91,8 @@ impl RPS {
 // P v S = 1 vs 2 = 2-1 + 1 = 2
 // S v R = 2 vs 0 = 0-1 + 1 = 2
 #[cfg(test)]
-fn outcome(elf: &Elf, mine: &RPS) -> usize {
-    3 * ((3 + 1 + mine.clone() as usize - RPS::from(elf) as usize) % 3)
+fn outcome(elf: &Elf, mine: &RockPaperScissors) -> usize {
+    3 * ((3 + 1 + mine.clone() as usize - RockPaperScissors::from(elf) as usize) % 3)
 }
 
 // #[aoc_generator(day2)]
@@ -115,8 +115,7 @@ fn generate(input: &str) -> String {
 
 #[aoc(day2, part1)]
 fn part1(input: &str) -> usize {
-    let mut lookup = Vec::with_capacity(36);
-    lookup.resize(36, 0);
+    let mut lookup = vec![0; 36];
 
     lookup[0] = 4;
     lookup[16] = 8;
@@ -133,9 +132,9 @@ fn part1(input: &str) -> usize {
         .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
         .map(|v| {
             // low order
-            let elf = ((v & 0x000000ff) >> 0) as usize - 'A' as usize;
+            let elf = (v & 0x000000ff) as usize - b'A' as usize;
             // high order
-            let advice = ((v & 0x00ff0000) >> 12) as usize - (('X' as usize) << 4);
+            let advice = ((v & 0x00ff0000) >> 12) as usize - ((b'X' as usize) << 4);
             unsafe { lookup.get_unchecked(elf | advice) }
         })
         .sum()
@@ -143,8 +142,7 @@ fn part1(input: &str) -> usize {
 
 #[aoc(day2, part2)]
 fn part2(input: &str) -> usize {
-    let mut lookup = Vec::with_capacity(36);
-    lookup.resize(36, 0);
+    let mut lookup = vec![0; 36];
 
     lookup[0] = 3;
     lookup[16] = 4;
@@ -161,9 +159,9 @@ fn part2(input: &str) -> usize {
         .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
         .map(|v| {
             // low order
-            let elf = ((v & 0x000000ff) >> 0) as usize - 'A' as usize;
+            let elf = (v & 0x000000ff) as usize - b'A' as usize;
             // high order
-            let advice = ((v & 0x00ff0000) >> 12) as usize - (('X' as usize) << 4);
+            let advice = ((v & 0x00ff0000) >> 12) as usize - ((b'X' as usize) << 4);
             unsafe { lookup.get_unchecked(elf | advice) }
         })
         .sum()
@@ -187,10 +185,10 @@ C Z
 
     #[test]
     fn scoring() {
-        assert_eq!(6, outcome(&Elf::A, &RPS::from(&Advice::Y)));
-        assert_eq!(2, RPS::from(&Advice::Y).shape_score());
-        assert_eq!(0, outcome(&Elf::B, &RPS::from(&Advice::X)));
-        assert_eq!(3, outcome(&Elf::C, &RPS::from(&Advice::Z)));
+        assert_eq!(6, outcome(&Elf::A, &RockPaperScissors::from(&Advice::Y)));
+        assert_eq!(2, RockPaperScissors::from(&Advice::Y).shape_score());
+        assert_eq!(0, outcome(&Elf::B, &RockPaperScissors::from(&Advice::X)));
+        assert_eq!(3, outcome(&Elf::C, &RockPaperScissors::from(&Advice::Z)));
 
         // In the first round, your opponent will choose Rock (A), and you should choose Paper (Y).
         // This ends in a win for you with a score of 8 (2 because you chose Paper + 6 because you won).
@@ -226,7 +224,10 @@ C Z
 
     #[test]
     fn test_choose_shape() {
-        assert_eq!(RPS::Rock, RPS::choose_shape(&Elf::A, &Advice::Y));
+        assert_eq!(
+            RockPaperScissors::Rock,
+            RockPaperScissors::choose_shape(&Elf::A, &Advice::Y)
+        );
     }
 
     #[test]
@@ -239,11 +240,11 @@ C Z
             eprintln!(
                 "{} {} {} {} {} {}",
                 v,
-                'A' as u8,
+                b'A',
                 ((v & 0xff000000) >> 24) as u8, // - 'A' as u8,
-                ((v & 0x00ff0000) >> 16) as u8 - 'X' as u8,
+                ((v & 0x00ff0000) >> 16) as u8 - b'X',
                 ((v & 0x0000ff00) >> 8) as u8, // - 'X' as u8,
-                ((v & 0x000000ff) >> 0) as u8 - 'A' as u8
+                (v & 0x000000ff) as u8 - b'A'
             );
         }
     }
@@ -274,7 +275,7 @@ lookup.resize(36, 0);
         //         );
         for elf in [Elf::A, Elf::B, Elf::C] {
             for advice in [Advice::X, Advice::Y, Advice::Z] {
-                let mine = RPS::from(&advice);
+                let mine = RockPaperScissors::from(&advice);
                 eprintln!(
                     "lookup[{}] = {};",
                     (elf.clone() as u8) | ((advice as u8) << 4),
@@ -290,7 +291,7 @@ lookup.resize(36, 0);
     fn gen_part2() {
         for elf in [Elf::A, Elf::B, Elf::C] {
             for advice in [Advice::X, Advice::Y, Advice::Z] {
-                let mine = &RPS::choose_shape(&elf, &advice);
+                let mine = &RockPaperScissors::choose_shape(&elf, &advice);
                 eprintln!(
                     "lookup[{}] = {};",
                     (elf.clone() as u8) | ((advice as u8) << 4),
