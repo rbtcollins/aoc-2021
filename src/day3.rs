@@ -1,125 +1,118 @@
-use std::rc::Rc;
-use std::str;
-
 use aoc_runner_derive::{aoc, aoc_generator};
+use itertools::{EitherOrBoth, Itertools};
 
 #[aoc_generator(day3)]
-fn generate(input: &str) -> Vec<Rc<Vec<u8>>> {
+fn generate(input: &str) -> Vec<Vec<Vec<u8>>> {
     input
         .lines()
-        .map(|s| Rc::new(s.as_bytes().to_owned()))
+        .map(|l| {
+            l.as_bytes()
+                .chunks(l.len() >> 1)
+                .map(|c| {
+                    c.iter()
+                        .map(|b| {
+                            if *b > b'Z' {
+                                b - b'a' + 1 // a -> 1
+                            } else {
+                                b - b'A' + 27 // A -> 27
+                            }
+                        })
+                        .collect()
+                })
+                .collect()
+        })
         .collect()
 }
 
 #[aoc(day3, part1)]
-fn part1(input: &[Rc<Vec<u8>>]) -> usize {
-    let mut totals = vec![0; input[0].len()];
-    for diagnostic in input {
-        for pos in 0..diagnostic.len() {
-            let val: i8 = (diagnostic[pos] - b'0').try_into().unwrap();
-            totals[pos] = totals[pos] + val + val - 1;
-        }
-    }
-
-    // totals[0] < 0 if most common bit is 0. >0 if MCB is 1.
-    let mut epsilon = 0;
-    let mut gamma = 0;
-    for val in totals {
-        epsilon <<= 1;
-        gamma <<= 1;
-        match val {
-            i if i < 0 => epsilon += 1,
-            i if i > 0 => gamma += 1,
-            _ => panic!("aiiee"),
-        }
-    }
-    gamma * epsilon
-}
-
-fn split_on_bit(input: &[Rc<Vec<u8>>], pos: usize) -> (Vec<Rc<Vec<u8>>>, Vec<Rc<Vec<u8>>>) {
-    let mut zeros = vec![];
-    let mut ones = vec![];
-    for diagnostic in input {
-        match diagnostic[pos] {
-            b'0' => zeros.push(diagnostic.clone()),
-            _ => ones.push(diagnostic.clone()),
-        }
-    }
-    (zeros, ones)
+fn part1(input: &[Vec<Vec<u8>>]) -> usize {
+    input
+        .iter()
+        .map(|rs| {
+            rs[0]
+                .iter()
+                .sorted()
+                .merge_join_by(rs[1].iter().sorted(), |i, j| (*i).cmp(*j))
+                .filter_map(|m| match m {
+                    EitherOrBoth::Both(i, _) => Some(*i as usize),
+                    _ => None,
+                })
+                .unique()
+                .sum::<usize>()
+        })
+        .sum()
 }
 
 #[aoc(day3, part2)]
-fn part2(input: &[Rc<Vec<u8>>]) -> usize {
-    // oxy: most common, tie take 1
-    // co2: least common. tie take 0
-    let (mut oxy, mut co2) = {
-        let (zeros, ones) = split_on_bit(input, 0);
-        match zeros.len() as isize - ones.len() as isize {
-            i if i > 0 => (zeros, ones),
-            i if i < 0 => (ones, zeros),
-            _ => (ones, zeros),
-        }
-    };
-    let mut pos = 1;
-    loop {
-        if oxy.len() == 1 {
-            break;
-        }
-        let mut new_oxy = {
-            let (zeros, ones) = split_on_bit(&oxy, pos);
-            match zeros.len() as isize - ones.len() as isize {
-                i if i > 0 => (zeros),
-                i if i < 0 => (ones),
-                _ => (ones),
-            }
-        };
-        std::mem::swap(&mut new_oxy, &mut oxy);
-        pos += 1;
-    }
-    // we could factor these three similar things but meh.
-    let mut pos = 1;
-    loop {
-        if co2.len() == 1 {
-            break;
-        }
-        let (zeros, ones) = split_on_bit(&co2, pos);
-        co2 = match zeros.len() as isize - ones.len() as isize {
-            i if i > 0 => (ones),
-            i if i < 0 => (zeros),
-            _ => (zeros),
-        };
-        pos += 1;
-    }
-    usize::from_str_radix(str::from_utf8(&oxy[0]).unwrap(), 2).unwrap()
-        * usize::from_str_radix(str::from_utf8(&co2[0]).unwrap(), 2).unwrap()
+fn part2(input: &[Vec<Vec<u8>>]) -> usize {
+    input
+        .chunks_exact(3)
+        .map(|c| {
+            c[0][0]
+                .iter()
+                .chain(c[0][1].iter())
+                .sorted()
+                .merge_join_by(c[1][0].iter().chain(c[1][1].iter()).sorted(), |i, j| {
+                    (*i).cmp(*j)
+                })
+                .filter_map(|m| match m {
+                    EitherOrBoth::Both(i, _) => Some(*i),
+                    _ => None,
+                })
+                .merge_join_by(c[2][0].iter().chain(c[2][1].iter()).sorted(), |i, j| {
+                    (*i).cmp(*j)
+                })
+                .filter_map(|m| match m {
+                    EitherOrBoth::Both(i, _) => Some(i as usize),
+                    _ => None,
+                })
+                .unique()
+                .sum::<usize>()
+        })
+        .sum()
 }
 
 #[cfg(test)]
 mod tests {
-
-    const SAMPLE: &str = r#"00100
-11110
-10110
-10111
-10101
-01111
-00111
-11100
-10000
-11001
-00010
-01010
-"#;
+    use super::*;
 
     #[test]
-    fn part1() {
-        let input = super::generate(SAMPLE);
-        assert_eq!(198, super::part1(&input));
+    fn test_part1() {
+        assert_eq!(
+            part1(&generate(
+                "vJrwpWtwJgWrhcsFMMfFFhFp
+jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+PmmdzqPrVvPwwTWBwg
+wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
+ttgJtRGJQctTZtZT
+CrZsJsPPZsGzwwsLwLmpwMDw",
+            )),
+            157
+        );
     }
 
     #[test]
-    fn part2() {
-        let input = super::generate(SAMPLE);
-        assert_eq!(230, super::part2(&input));
+    fn test_part1_individual() {
+        assert_eq!(part1(&generate("vJrwpWtwJgWrhcsFMMfFFhFp",)), 16);
+        assert_eq!(part1(&generate("jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL",)), 38);
+        assert_eq!(part1(&generate("PmmdzqPrVvPwwTWBwg",)), 42);
+        assert_eq!(part1(&generate("wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn",)), 22);
+        assert_eq!(part1(&generate("ttgJtRGJQctTZtZT",)), 20);
+        assert_eq!(part1(&generate("CrZsJsPPZsGzwwsLwLmpwMDw",)), 19);
+    }
+
+    #[test]
+    fn test_part2() {
+        assert_eq!(
+            part2(&generate(
+                "vJrwpWtwJgWrhcsFMMfFFhFp
+jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+PmmdzqPrVvPwwTWBwg
+wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
+ttgJtRGJQctTZtZT
+CrZsJsPPZsGzwwsLwLmpwMDw",
+            )),
+            70
+        );
     }
 }
