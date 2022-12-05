@@ -230,24 +230,24 @@ C Z
         );
     }
 
-    #[test]
-    fn experiment() {
-        for v in "A X\n"
-            .as_bytes()
-            .chunks_exact(4)
-            .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
-        {
-            eprintln!(
-                "{} {} {} {} {} {}",
-                v,
-                b'A',
-                ((v & 0xff000000) >> 24) as u8, // - 'A' as u8,
-                ((v & 0x00ff0000) >> 16) as u8 - b'X',
-                ((v & 0x0000ff00) >> 8) as u8, // - 'X' as u8,
-                (v & 0x000000ff) as u8 - b'A'
-            );
-        }
-    }
+    // #[test]
+    // fn experiment() {
+    //     for v in "A X\n"
+    //         .as_bytes()
+    //         .chunks_exact(4)
+    //         .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
+    //     {
+    //         eprintln!(
+    //             "{} {} {} {} {} {}",
+    //             v,
+    //             b'A',
+    //             ((v & 0xff000000) >> 24) as u8, // - 'A' as u8,
+    //             ((v & 0x00ff0000) >> 16) as u8 - b'X',
+    //             ((v & 0x0000ff00) >> 8) as u8, // - 'X' as u8,
+    //             (v & 0x000000ff) as u8 - b'A'
+    //         );
+    //     }
+    // }
 
     #[test]
     fn gen_part1() {
