@@ -1,60 +1,70 @@
 use aoc_runner_derive::{aoc, aoc_generator};
 
 #[aoc_generator(day6)]
-fn generate(input: &str) -> [u64; 9] {
-    // index=(days+pos %7) , value=number of fish.
-    let mut result = [0; 9];
-    for fish in input.split(',').flat_map(|s| s.parse::<usize>()) {
-        result[fish] += 1;
-    }
-    result
-}
-
-fn run_sim(input: &[u64; 9], steps: usize) -> u64 {
-    // load into register-capable vars
-    let [mut t0, mut t1, mut t2, mut t3, mut t4, mut t5, mut t6, mut t7, mut t8] = input;
-    let mut tmp: u64;
-    for _ in 0..steps {
-        // advance time
-        tmp = t0;
-        t0 = t1;
-        t1 = t2;
-        t2 = t3;
-        t3 = t4;
-        t4 = t5;
-        t5 = t6;
-        t6 = tmp + t7;
-        t7 = t8;
-        t8 = tmp;
-    }
-    // return
-    t0 + t1 + t2 + t3 + t4 + t5 + t6 + t7 + t8
+fn generate(input: &str) -> Vec<char> {
+    input.chars().collect::<Vec<_>>()
 }
 
 #[aoc(day6, part1)]
-fn part1(input: &[u64; 9]) -> u64 {
-    run_sim(input, 80)
+fn part1(input: &Vec<char>) -> u32 {
+    find_marker(input, 4)
 }
 
 #[aoc(day6, part2)]
-fn part2(input: &[u64; 9]) -> u64 {
-    run_sim(input, 256)
+fn part2(input: &Vec<char>) -> u32 {
+    find_marker(input, 14)
+}
+
+fn find_marker(input: &Vec<char>, length: usize) -> u32 {
+    let mut last_dup = 0;
+    for p in 1..input.len() {
+        if last_dup >= p {
+            continue;
+        }
+
+        // eprintln!("{last_dup}..{p}, {:?}", &input[last_dup..=p]);
+        for l in (last_dup..p).rev() {
+            if input[l] == input[p] {
+                // duplicate
+                // eprintln!("Dup at {l} {p} {:?}", &input[l..=p]);
+                last_dup = l + 1;
+                break;
+            }
+            if p - last_dup == length {
+                return p as u32;
+            }
+            // eprintln!("{l},{p}");
+        }
+    }
+    0
 }
 
 #[cfg(test)]
 mod tests {
 
-    const SAMPLE: &str = r#"3,4,3,1,2"#;
+    const SAMPLES: &[&str] = &[
+        r#"mjqjpqmgbljsphdztnvjfqwrcgsmlb"#,
+        "bvwbjplbgvbhsrlpgdmjqwftvncz",
+        "nppdvjthqldpwncqszvftbrmjlhg",
+        "nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg",
+        "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw",
+    ];
+    const P1_R: &[u32] = &[7, 5, 6, 10, 11];
+    const P2_R: &[u32] = &[19, 23, 23, 29, 26];
 
     #[test]
     fn part1() {
-        let input = super::generate(SAMPLE);
-        assert_eq!(5934, super::part1(&input));
+        for (sample, result) in SAMPLES.iter().zip(P1_R) {
+            let input = super::generate(sample);
+            assert_eq!(result, &super::part1(&input));
+        }
     }
 
     #[test]
     fn part2() {
-        let input = super::generate(SAMPLE);
-        assert_eq!(26984457539, super::part2(&input));
+        for (sample, result) in SAMPLES.iter().zip(P2_R) {
+            let input = super::generate(sample);
+            assert_eq!(result, &super::part2(&input));
+        }
     }
 }
