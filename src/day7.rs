@@ -1,112 +1,152 @@
-use aoc_runner_derive::{aoc, aoc_generator};
-use itertools::Itertools;
+use std::{cmp::min, collections::HashMap};
 
-#[derive(Default, Clone, Debug)]
-struct Input {
-    positions: Vec<isize>,
+use aoc_runner_derive::{aoc, aoc_generator};
+
+trait FS {
+    fn size(&self) -> usize;
 }
 
-impl Input {}
+#[derive(Default, Clone, Debug)]
+struct File(usize);
+
+impl FS for File {
+    fn size(&self) -> usize {
+        self.0
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+struct Dir {
+    files: Vec<File>,
+    dirs: HashMap<String, Dir>,
+}
+
+impl FS for Dir {
+    fn size(&self) -> usize {
+        self.files.iter().map(|c| c.size()).sum::<usize>()
+            + self.dirs.values().map(|d| d.size()).sum::<usize>()
+    }
+}
+
+impl Dir {
+    fn find_child(&mut self, path: &[&str]) -> &mut Dir {
+        if path.is_empty() {
+            return self;
+        }
+
+        self.dirs.get_mut(path[0]).unwrap().find_child(&path[1..])
+    }
+}
 
 #[aoc_generator(day7)]
-fn generate(input: &str) -> Input {
-    let mut result = Input {
-        positions: input.split(',').flat_map(|s| s.parse::<isize>()).collect(),
-    };
-    result.positions.sort_unstable();
-    result
+fn generate(input: &str) -> Dir {
+    // quadratic because traverses from root; shared ownership is gnarly in
+    // rust and can't be bothered mucking with a RefCell etc.
+    input
+        .lines()
+        .fold((vec![], Dir::default()), |(mut cwd, mut root), e| {
+            let symbols = e.split_ascii_whitespace().collect::<Vec<_>>();
+            match &symbols[..] {
+                ["$", "cd", "/"] => {
+                    cwd = vec![];
+                }
+                ["$", "cd", ".."] => {
+                    cwd.pop();
+                }
+                ["$", "cd", name] => {
+                    cwd.push(name.to_owned());
+                }
+                ["$", "ls"] => (),
+                ["dir", name] => {
+                    root.find_child(&cwd)
+                        .dirs
+                        .insert(name.to_string(), Dir::default());
+                }
+                [size, _name] => {
+                    root.find_child(&cwd)
+                        .files
+                        .push(File(str::parse(size).unwrap()));
+                }
+                x => unreachable!("unreachable {x:?}"),
+            }
+            (cwd, root)
+        })
+        .1
 }
 
 #[aoc(day7, part1)]
-fn part1(input: &Input) -> isize {
-    let positions = &input.positions;
-    let mut val = 0;
-    let mut current_cost: isize = positions.iter().sum();
-    let mut right: isize = -(positions.len() as isize);
-    for (left, new_val) in positions.iter().enumerate() {
-        let position_increment = new_val - val;
-        // cost of everything to the left increases by position_increment.
-        // cost of everything to the right decreases by position_increment
-        let new_cost = current_cost + position_increment * (left as isize + right);
-        // we remove 1 items from right
-        right += 1;
-        // capture the cost
-        if new_cost > current_cost {
-            return current_cost;
+fn part1(input: &Dir) -> usize {
+    let mut queue = vec![input];
+    let mut acc = 0;
+    while !queue.is_empty() {
+        let next = queue.pop().unwrap();
+        let next_size = next.size();
+        if next_size <= 100000 {
+            acc += next_size;
         }
-        current_cost = new_cost;
-        val = *new_val;
+        queue.extend(next.dirs.values());
     }
-    current_cost
+    acc
 }
 
 #[aoc(day7, part2)]
-fn part2(input: &Input) -> isize {
-    let positions = &input.positions;
-    let mut right_i = positions.len() as isize;
-    // pass 0: sum distances
-    let mut right_sid: isize = positions.iter().sum();
-    // pass 1: transform to pos:count
-    let mut groups: Vec<isize> = vec![0; *positions.last().unwrap() as usize + 1];
-    for (k, c) in input
-        .positions
-        .iter()
-        .group_by(|k| *k)
-        .into_iter()
-        .map(|(k, g)| (*k, g.into_iter().count() as isize))
-    {
-        groups[k as usize] = c;
-    }
-    // pass 2: accumulate the cost from 0
-    let mut right_v = groups
-        .iter()
-        .enumerate()
-        .map(|(k, c)| k as isize * (k as isize + 1) / 2 * c)
-        .sum();
-    // pass 3: rolling calculation to find best point
-    let mut pos = 0;
-    let mut left_i = 0;
-    let mut left_sid = 0;
-    let mut left_v = 0;
-    let mut current_i = 0;
-    let mut current_cost = right_v;
-
-    for (new_pos, count) in groups.iter().enumerate() {
-        let new_pos = new_pos as isize;
-        let step = new_pos - pos;
-        // apply previous indices as they move out from 0.
-        left_i += current_i;
-        left_v += step * (2 * left_sid + (step + 1) * left_i) / 2;
-        left_sid += step * left_i;
-        // save new indices
-        current_i = *count;
-        right_v += step * ((step - 1) * right_i - 2 * right_sid) / 2;
-        right_sid -= step * right_i;
-        right_i -= count;
-        let new_cost = left_v + right_v;
-        if new_cost > current_cost {
-            return current_cost;
+fn part2(input: &Dir) -> usize {
+    let device_size = 70000000;
+    let update_size = 30000000;
+    let used_size = input.size();
+    let unused_space = device_size - used_size;
+    let min_to_free = update_size - unused_space;
+    let mut queue = vec![input];
+    let mut smallest_size = device_size;
+    while !queue.is_empty() {
+        let next = queue.pop().unwrap();
+        let next_size = next.size();
+        if next_size > min_to_free {
+            smallest_size = min(next.size(), smallest_size);
+            // smaller than threshold dirs aren't worth exploring children of.
+            queue.extend(next.dirs.values());
         }
-        current_cost = new_cost;
-        pos = new_pos;
     }
-    current_cost
+    smallest_size
 }
 
 #[cfg(test)]
 mod tests {
 
-    const SAMPLE: &str = r#"16,1,2,0,4,2,7,1,2,14"#;
+    const SAMPLE: &str = r#"$ cd /
+$ ls
+dir a
+14848514 b.txt
+8504156 c.dat
+dir d
+$ cd a
+$ ls
+dir e
+29116 f
+2557 g
+62596 h.lst
+$ cd e
+$ ls
+584 i
+$ cd ..
+$ cd ..
+$ cd d
+$ ls
+4060174 j
+8033020 d.log
+5626152 d.ext
+7214296 k
+"#;
 
     #[test]
     fn part1() {
         let input = super::generate(SAMPLE);
-        assert_eq!(37, super::part1(&input));
+        assert_eq!(95437, super::part1(&input));
     }
 
     #[test]
     fn part2() {
         let input = super::generate(SAMPLE);
-        assert_eq!(168, super::part2(&input));
+        assert_eq!(24933642, super::part2(&input));
     }
 }
