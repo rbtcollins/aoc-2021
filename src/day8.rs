@@ -63,103 +63,87 @@ fn part1(input: &Vec<Vec<u8>>) -> usize {
     p + interior
 }
 
-// #[aoc(day8, part2)]
-// fn part2(input: &Input) -> usize {
-//     input
-//         .displays
-//         .iter()
-//         .map(|d| {
-//             let mut solutions = vec![String::new(); 10];
-//             // trivial cases needed to solve more complicated ones
-//             for s in d.samples.iter() {
-//                 if s.len() == 2 {
-//                     solutions[1] = s.clone();
-//                 } else if s.len() == 3 {
-//                     solutions[7] = s.clone();
-//                 } else if s.len() == 4 {
-//                     solutions[4] = s.clone();
-//                 } else if s.len() == 7 {
-//                     solutions[8] = s.clone();
-//                 }
-//             }
-//             let mut histogram = vec![0; 7];
-//             // segments map to a-g
-//             // 0/ /2/3/ /5/6/7/8/9 share a 8 2
-//             // 0/ / / /4/5/6/ /8/9 share b 6 1
-//             // 0/1/2/3/4/ / /7/8/9 share c 8 2
-//             //  / /2/3/4/5/6/ /8/9 share d 7 2
-//             // 0/ /2/ / / /6/ /8/  share e 4 1
-//             // 0/1/ /3/4/5/6/7/8/9 share f 9 1
-//             // 0/ /2/3/ /5/6/ /8/9 share g 7 2
-//             // -----------
-//             //
-//             // present in 9 = f position
-//             // present in 8 -> a or c
-//             // present in 7 -> d or g
-//             // present in 6 -> b position
-//             // present in 4 -> e position
-//             // present in 8 and in '1' -> c
-//             // present in 8 and not in '1' -> a
-//             // present in 7 and in '0' -> g
-//             // present in 7 and no
-//             for sample in d.samples.iter() {
-//                 // populate histogram
-//                 for char in sample.chars() {
-//                     histogram[index(char)] += 1;
-//                 }
-//             }
+#[derive(Debug, Clone, Default)]
+struct HeightWindow([usize; 10]);
 
-//             let mut mapping = vec!['z'; 7];
-//             for (i, v) in histogram.iter().enumerate() {
-//                 let c = unsafe { char::from_u32_unchecked('a' as u32 + i as u32) };
-//                 let v = *v;
-//                 if v == 9 {
-//                     mapping[index('f')] = c;
-//                 } else if v == 6 {
-//                     mapping[index('b')] = c;
-//                 } else if v == 4 {
-//                     mapping[index('e')] = c;
-//                 } else if v == 8 {
-//                     // a or c
-//                     if solutions[1].contains(c) {
-//                         mapping[index('c')] = c;
-//                     } else {
-//                         mapping[index('a')] = c;
-//                     }
-//                 } else if v == 7 {
-//                     // d or g
-//                     if solutions[4].contains(c) {
-//                         mapping[index('d')] = c;
-//                     } else {
-//                         mapping[index('g')] = c;
-//                     }
-//                 }
-//             }
-//             let mut resolved = vec![];
+impl HeightWindow {
+    /// How far can the house see? And then updates the window given the houses height.
+    fn view_distance(&mut self, house_height: &u8) -> usize {
+        let house_height = *house_height as usize;
+        // with a height n, and height windows [... (less than n), nth, n+1th...]
+        // the house can see min([n..])
+        let result = *self.0[house_height..].iter().min().unwrap();
+        // and update the distance for all element
+        for i in self.0.iter_mut() {
+            *i += 1;
+        }
+        // the house height distance becomes 1
+        self.0[house_height] = 1;
+        result
+    }
+}
 
-//             resolved.push(to_digits("abcefg", &mapping)); // 0
-//             resolved.push(to_digits("cf", &mapping)); // 1
-//             resolved.push(to_digits("acdeg", &mapping)); // 2
-//             resolved.push(to_digits("acdfg", &mapping)); // 3
-//             resolved.push(to_digits("bcdf", &mapping)); // 4
-//             resolved.push(to_digits("abdfg", &mapping)); // 5
-//             resolved.push(to_digits("abdefg", &mapping)); // 6
-//             resolved.push(to_digits("acf", &mapping)); // 7
-//             resolved.push(to_digits("abcdefg", &mapping)); // 8
-//             resolved.push(to_digits("abcdfg", &mapping)); // 9
-//             let result = d
-//                 .digits
-//                 .iter()
-//                 .map(|s| resolved.iter().position(|s2| s2 == s))
-//                 .map(|o| {
-//                     assert!(o.is_some());
-//                     o.unwrap()
-//                 })
-//                 .collect::<Vec<_>>();
-//             result.iter().fold(0, |a, i| a * 10 + *i)
-//         })
-//         .sum::<usize>()
-// }
+// calculate scores looking in one direction
+fn score<'a>(g: impl Iterator<Item = &'a Vec<u8>>, scores: &mut [Vec<usize>]) {
+    // walk each row multiplying score by the distance to the left
+    for (i, row) in g.enumerate() {
+        let mut distances = HeightWindow::default();
+        for (j, h) in row.iter().enumerate() {
+            scores[i][j] *= distances.view_distance(h);
+        }
+    }
+}
+
+#[aoc(day8, part2)]
+fn part2(input: &[Vec<u8>]) -> usize {
+    let input = &mut input.to_vec();
+    let h = input.len();
+    let w = input[0].len();
+    // single pass is probably possible, but constant 4x is fine.
+    let mut scores = vec![vec![1usize; w]; h];
+    score(input.iter(), &mut scores);
+
+    // reverse the content of the rows
+    scores.iter_mut().for_each(|r| r.reverse());
+    // scores.reverse();
+    score(
+        input.iter_mut().map(|r| {
+            r.reverse();
+            &*r
+        }),
+        &mut scores,
+    );
+
+    let mut scores = {
+        (0..w)
+            .map(|j| (0..h).map(|i| scores[i][j]).collect::<Vec<_>>())
+            .collect::<Vec<Vec<_>>>()
+    };
+    let input = &mut {
+        (0..w)
+            .map(|j| (0..h).map(|i| input[i][j]).collect::<Vec<_>>())
+            .collect::<Vec<Vec<_>>>()
+    };
+    score(input.iter(), &mut scores);
+
+    // reverse the content of the rows
+    scores.iter_mut().for_each(|r| r.reverse());
+    // scores.reverse();
+    score(
+        input.iter_mut().map(|r| {
+            r.reverse();
+            &*r
+        }),
+        &mut scores,
+    );
+
+    // max from interior
+    *scores[1..scores.len() - 1]
+        .iter()
+        .flat_map(|r| r[1..r.len() - 1].iter())
+        .max()
+        .unwrap()
+}
 
 #[cfg(test)]
 mod tests {
@@ -176,15 +160,9 @@ mod tests {
         assert_eq!(21, super::part1(&input));
     }
 
-    // #[test]
-    // fn part2() {
-    //     let input = super::generate(SAMPLE);
-    //     assert_eq!(61229, super::part2(&input));
-    // }
-
-    // #[test]
-    // fn index() {
-    //     assert_eq!(0, super::index('a'));
-    //     assert_eq!(6, super::index('g'));
-    // }
+    #[test]
+    fn part2() {
+        let input = super::generate(SAMPLE);
+        assert_eq!(8, super::part2(&input));
+    }
 }
