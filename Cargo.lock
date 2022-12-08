@@ -41,6 +41,7 @@ dependencies = [
 [[package]]
 name = "aoc-main"
 version = "0.5.0"
+source = "git+https://github.com/remi-dupre/aoc?rev=bb08c55#bb08c555a403e56d86caec7f00bf51ec33187dbc"
 dependencies = [
  "attohttpc",
  "clap 4.0.29",
