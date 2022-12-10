@@ -9,6 +9,7 @@ aoc-runner = "*"
 aoc-runner-derive = "*"
 enum-utils = "*"
 itertools = "*"
+lending-iterator = "0.1.6"
 rayon = "*"
 serde = { version = "1.0", features = ["derive"] }
 serde_plain = "*"
