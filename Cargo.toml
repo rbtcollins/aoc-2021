@@ -5,6 +5,7 @@ publish = false
 version = "0.1.0"
 
 [dependencies]
+aoc-main = { version = "0.5.0", path = "../aoc-main", features = ['bench'] }
 aoc-runner = "*"
 aoc-runner-derive = "*"
 enum-utils = "*"
