@@ -35,24 +35,26 @@ struct Cpu {
 fn simulate_cpu(
     input: &(impl Clone + Iterator<Item = Instruction>),
 ) -> impl Iterator<Item = [Option<Cpu>; 2]> {
-    input.clone().scan(
-        Cpu { cc: 1, x: 1 },
-        |state, instruction| match instruction {
-            Instruction::Noop => {
-                state.cc += 1;
-                Some([Some(*state), None])
-            }
-            Instruction::Addx(v) => {
-                let before = Cpu {
-                    cc: state.cc + 1,
-                    x: state.x,
-                };
-                state.x += v;
-                state.cc += 2;
-                Some([Some(before), Some(*state)])
-            }
-        },
-    )
+    [[Some(Cpu { x: 0, cc: 1 }), None]]
+        .into_iter()
+        .chain(input.clone().scan(
+            Cpu { cc: 1, x: 1 },
+            |state, instruction| match instruction {
+                Instruction::Noop => {
+                    state.cc += 1;
+                    Some([Some(*state), None])
+                }
+                Instruction::Addx(v) => {
+                    let before = Cpu {
+                        cc: state.cc + 1,
+                        x: state.x,
+                    };
+                    state.x += v;
+                    state.cc += 2;
+                    Some([Some(before), Some(*state)])
+                }
+            },
+        ))
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -70,6 +72,7 @@ pub fn part_2(input: &(impl Clone + Iterator<Item = Instruction>)) -> Crt {
     simulate_cpu(input)
         .flatten()
         .flatten()
+        .take(240)
         .fold(Crt([[' '; 40]; 6]), |mut crt, cpu| {
             let pixel = (cpu.cc - 1) % 40;
             let row = ((cpu.cc - 1) as usize / 40) % 6;
