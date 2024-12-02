@@ -13,6 +13,18 @@ enum Rocks {
     Box,
 }
 
+impl Rocks {
+    fn collide(&self, x:usize, y:usize, height:usize, chamber: &[[bool;7]]) -> bool {
+        match self {
+            Rocks::Line => {x < 1 || x>7 || chamber[height][x]},
+            Rocks::Cross => todo!(),
+            Rocks::Bracket => todo!(),
+            Rocks::I => todo!(),
+            Rocks::Box => todo!(),
+        }
+    }
+}
+
 pub fn generate(input: &str) -> Vec<Direction> {
     input
         .as_bytes()
@@ -38,7 +50,11 @@ pub fn part_1(input: &[Direction]) -> usize {
     ]
     .iter()
     .cycle();
-    // push empty rows on the top.
+    
+    for (r, index) in rock_order.zip(0..2022) {
+
+    }
+
     0
 }
 
