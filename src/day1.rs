@@ -1,44 +1,52 @@
-use std::io::{self, BufRead};
+use std::collections::HashMap;
 
-use aoc_runner_derive::{aoc, aoc_generator};
-use itertools::Itertools;
+use winnow::combinator::repeat;
+use winnow::{
+    ascii::space1,
+    combinator::{opt, seq, terminated},
+};
+use winnow::{
+    ascii::{dec_uint, line_ending},
+    error::ContextError,
+    prelude::*,
+};
 
-#[aoc_generator(day1)]
-fn generate(input: &[u8]) -> io::Result<Vec<Option<u32>>> {
-    input
-        .lines()
-        .map_ok(|l| -> Result<Option<u32>, std::num::ParseIntError> {
-            Ok(if !l.is_empty() {
-                Some(l.parse::<u32>()?)
-            } else {
-                None
-            })
-        })
-        .flatten_ok()
-        .collect()
+pub fn generate(input: &str) -> Vec<(u32, u32)> {
+    repeat(
+        0..,
+        terminated(
+            seq!(
+                dec_uint::<_, _, ContextError>,
+                _: space1,
+                dec_uint
+
+            ),
+            opt(line_ending),
+        ),
+    )
+    .parse(input)
+    .unwrap()
 }
 
-#[aoc(day1, part1)]
-fn part1(input: &[Option<u32>]) -> u32 {
-    let mut input = input.iter().peekable();
-    let mut largest = 0;
-    while input.peek().is_some() {
-        largest = std::cmp::max(
-            input.by_ref().take_while(|i| i.is_some()).flatten().sum(),
-            largest,
-        );
-    }
-    largest
+pub fn part_1(input: &[(u32, u32)]) -> u32 {
+    let (mut l, mut r): (Vec<_>, Vec<_>) = input.iter().copied().unzip();
+    l.sort_unstable();
+    r.sort_unstable();
+    l.into_iter()
+        .zip(r.into_iter())
+        .map(|(a, b)| (a as i32 - b as i32).abs() as u32)
+        .sum()
 }
 
-#[aoc(day1, part2)]
-fn part2(input: &[Option<u32>]) -> u32 {
-    let mut input = input.iter().peekable();
-    let mut sizes = vec![];
-    while input.peek().is_some() {
-        sizes.push(input.by_ref().take_while(|i| i.is_some()).flatten().sum());
-    }
-    sizes.sort();
-    sizes.reverse();
-    sizes.iter().take(3).sum()
+pub fn part_2(input: &[(u32, u32)]) -> u32 {
+    let (l, mut r): (Vec<_>, Vec<_>) = input.iter().copied().unzip();
+    r.sort_unstable();
+    let counts = r
+        .chunk_by(PartialEq::eq)
+        .into_iter()
+        .map(|v| (v[0], v.len() as u32))
+        .collect::<HashMap<_, _>>();
+    l.into_iter()
+        .map(|v| counts.get(&v).unwrap_or(&0) * v)
+        .sum()
 }
