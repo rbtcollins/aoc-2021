@@ -65,7 +65,7 @@ pub fn part_2(input: &[Vec<i32>]) -> usize {
                             .windows(2)
                             .try_fold(0, |dir, pair| fold_pair(pair[0], pair[1], dir))
                             .is_ok();
-                        eprintln!("{:?} -> {}", report, succeeds);
+                        // eprintln!("{:?} -> {}", report, succeeds);
                         succeeds
                     })
                     .take(1)

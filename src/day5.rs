@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Index};
 
 use pathfinding::directed::topological_sort::topological_sort;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator as _};
@@ -11,8 +11,61 @@ use winnow::{
 
 pub type Pages = u64;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Update {
+    pages: [usize; 64],
+    len: usize,
+}
+
+impl Update {
+    pub fn iter(&self) -> std::slice::Iter<usize> {
+        self.pages[..self.len].iter()
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn swap(&mut self, a: usize, b: usize) {
+        self.pages.swap(a, b);
+    }
+}
+
+impl Index<usize> for Update {
+    type Output = usize;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        if index >= self.len {
+            panic!("index out of bounds");
+        }
+        &self.pages[index]
+    }
+}
+
+impl From<Vec<usize>> for Update {
+    fn from(from: Vec<usize>) -> Self {
+        let mut pages = [0; 64];
+        for i in 0..from.len() {
+            pages[i] = from[i];
+        }
+        Update {
+            pages,
+            len: from.len(),
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a Update {
+    type Item = &'a usize;
+    type IntoIter = std::slice::Iter<'a, usize>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.pages[..self.len].iter()
+    }
+}
+
 pub struct Puzzle {
-    updates: Vec<Vec<usize>>,
+    updates: Vec<Update>,
     predecessors: [Pages; 64],
     successors: [Pages; 64],
     to_original_values: [u32; 64],
@@ -71,7 +124,7 @@ pub fn generate(input: &str) -> Puzzle {
     // remap page values to fit in a u64 for use in bitsets.
     Puzzle {
         // orderings,
-        updates,
+        updates: updates.into_iter().map(Into::into).collect(),
         successors,
         predecessors,
         to_original_values,
@@ -79,8 +132,8 @@ pub fn generate(input: &str) -> Puzzle {
 }
 
 #[tracing::instrument(skip_all)]
-fn rule_topo_sort(update: &Vec<usize>, puzzle: &Puzzle) -> Vec<usize> {
-    let mut rule_pages = update.clone();
+fn rule_topo_sort(update: &Update, puzzle: &Puzzle) -> Vec<usize> {
+    let mut rule_pages = update.iter().copied().collect::<Vec<_>>();
     rule_pages.sort_unstable();
 
     topo_sort(rule_pages, &puzzle.successors)
@@ -101,7 +154,7 @@ fn topo_sort(rule_pages: Vec<usize>, successors: &[Pages; 64]) -> Vec<usize> {
     .expect("valid topo sort")
 }
 
-fn rule_is_sorted(update: &Vec<usize>, puzzle: &Puzzle) -> bool {
+fn rule_is_sorted(update: &Update, puzzle: &Puzzle) -> bool {
     let mut involved: Pages = 0;
     for page in update {
         involved |= 1 << page;
@@ -117,11 +170,11 @@ fn rule_is_sorted(update: &Vec<usize>, puzzle: &Puzzle) -> bool {
     return true;
 }
 
-fn sorted_update_mid(update: &Vec<usize>, puzzle: &Puzzle) -> Option<u32> {
+fn sorted_update_mid(update: &Update, puzzle: &Puzzle) -> Option<u32> {
     if rule_is_sorted(update, &puzzle) {
         None
     } else {
-        let mut sorted = update.clone();
+        let mut sorted = *update;
         let mut involved: Pages = 0;
         for page in update {
             involved |= 1 << page;
@@ -164,7 +217,7 @@ pub fn part_1_rayon(puzzle: &Puzzle) -> u32 {
         .updates
         .par_iter()
         .filter(|&update| {
-            let rule_sort: Vec<usize> = rule_topo_sort(update, &puzzle);
+            let rule_sort: Update = rule_topo_sort(update, &puzzle).into();
             rule_sort == *update
         })
         .map(|update| update[update.len() / 2])
