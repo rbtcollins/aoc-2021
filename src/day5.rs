@@ -1,8 +1,9 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
-use itertools::Itertools;
-use pathfinding::prelude::topological_sort_into_groups;
+use pathfinding::directed::topological_sort::topological_sort;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator as _};
+use tracing_forest::ForestLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use winnow::{
     ascii::{dec_uint, newline},
     combinator::{opt, repeat, separated, separated_pair, terminated},
@@ -10,107 +11,169 @@ use winnow::{
     Parser as _,
 };
 
-pub fn generate(input: &str) -> (Vec<(u32, u32)>, Vec<Vec<u32>>) {
+pub type Pages = u64;
+
+pub struct Puzzle {
+    // orderings: Vec<(u32, u32)>,
+    updates: Vec<Vec<usize>>,
+    successors: [Pages; 64],
+    to_original_values: [u32; 64],
+}
+
+pub fn generate(input: &str) -> Puzzle {
+    color_eyre::install().unwrap();
+    Registry::default()
+        .with(ForestLayer::default())
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
     let page = dec_uint::<_, u32, ContextError>;
     let order = terminated(separated_pair(page, "|", page), newline);
     let orders = repeat(1.., order);
     let update_line = separated(1.., page, ",");
     let update = terminated::<_, Vec<u32>, _, _, _, _>(update_line, opt(newline));
     let updates = repeat::<_, _, Vec<Vec<u32>>, _, _>(1.., update);
-    separated_pair(orders, newline, updates)
-        .parse(input)
-        .unwrap()
-}
+    let (orderings, updates): (Vec<(u32, u32)>, Vec<Vec<u32>>) =
+        separated_pair(orders, newline, updates)
+            .parse(input)
+            .unwrap();
 
-fn rule_topo_sort(update: &Vec<u32>, orderings: &HashSet<(u32, u32)>) -> Vec<u32> {
-    let relevant_rules = update
+    let mut to_original_values = [0u32; 64];
+    let mut to_new_values = HashMap::new();
+    for (a, b) in orderings.iter() {
+        if to_new_values.get(a).is_none() {
+            let new_value = to_new_values.len() as usize;
+            to_new_values.insert(a, new_value);
+            to_original_values[new_value as usize] = *a;
+        }
+        if to_new_values.get(b).is_none() {
+            let new_value = to_new_values.len() as usize;
+            to_new_values.insert(b, new_value);
+            to_original_values[new_value as usize] = *b;
+        }
+    }
+
+    let updates = updates
         .iter()
-        .tuple_combinations()
-        .filter_map(|(&a, &b)| {
-            if orderings.contains(&(a, b)) {
-                Some((a, b))
-            } else if orderings.contains(&(b, a)) {
-                Some((b, a))
-            } else {
-                None
-            }
+        .map(|update| {
+            update
+                .iter()
+                .map(|page| to_new_values.get(page).unwrap())
+                .copied()
+                .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
-    let mut rule_pages = relevant_rules
+
+    let orderings = orderings
         .iter()
-        .flat_map(|(r1, r2)| [r1, r2])
-        .copied()
-        .collect::<HashSet<u32>>()
-        .iter()
-        .copied()
+        .map(|&(a, b)| (to_new_values[&a], to_new_values[&b]))
         .collect::<Vec<_>>();
+
+    let mut successors = [0 as Pages; 64];
+    for &(a, b) in orderings.iter() {
+        successors[a] |= 1 << b;
+    }
+
+    // remap page values to fit in a u64 for use in bitsets.
+    Puzzle {
+        // orderings,
+        updates,
+        successors,
+        to_original_values,
+    }
+}
+
+#[tracing::instrument(skip_all)]
+fn rule_topo_sort(update: &Vec<usize>, puzzle: &Puzzle) -> Vec<usize> {
+    let mut rule_pages = update.clone();
     rule_pages.sort_unstable();
-    rule_pages.dedup();
-    let rule_pages = rule_pages;
-    topological_sort_into_groups(&rule_pages, |&page| {
-        let succ = relevant_rules
-            .iter()
-            .filter_map(|(r1, r2)| if *r1 == page { Some(*r2) } else { None })
-            .collect::<Vec<_>>();
-        succ
+
+    topo_sort(rule_pages, &puzzle.successors)
+}
+
+#[tracing::instrument(skip_all)]
+fn topo_sort(rule_pages: Vec<usize>, successors: &[Pages; 64]) -> Vec<usize> {
+    let mut rule_pages_u64 = 0u64;
+    for page in &rule_pages {
+        rule_pages_u64 |= 1 << page;
+    }
+    topological_sort(&rule_pages, |&page| {
+        let successor = successors[page];
+        (0..64)
+            .filter(|&i| successor & (1 << i) != 0 && rule_pages_u64 & (1 << i) != 0)
+            .collect::<Vec<_>>()
     })
-    .unwrap()
-    .concat()
+    .expect("valid topo sort")
 }
 
-pub fn part_1((orderings, updates): &(Vec<(u32, u32)>, Vec<Vec<u32>>)) -> u32 {
-    let orderings = orderings.iter().copied().collect::<HashSet<_>>();
-    updates
+fn rule_is_sorted(update: &Vec<usize>, puzzle: &Puzzle) -> bool {
+    let mut involved: Pages = 0;
+    for page in update {
+        involved |= 1 << page;
+    }
+    let mut seen: Pages = 0;
+    for page in update {
+        let successors = puzzle.successors[*page] & involved;
+        if successors & seen != 0 {
+            return false;
+        }
+        seen |= 1 << page;
+    }
+    return true;
+}
+
+pub fn part_1(puzzle: &Puzzle) -> u32 {
+    puzzle
+        .updates
         .iter()
+        .filter(|&update| rule_is_sorted(update, &puzzle))
+        .map(|update| update[update.len() / 2])
+        .map(|page| puzzle.to_original_values[page])
+        .sum()
+}
+
+pub fn part_1_rayon(puzzle: &Puzzle) -> u32 {
+    puzzle
+        .updates
+        .par_iter()
         .filter(|&update| {
-            let rule_sort = rule_topo_sort(update, &orderings);
+            let rule_sort: Vec<usize> = rule_topo_sort(update, &puzzle);
             rule_sort == *update
         })
         .map(|update| update[update.len() / 2])
+        .map(|page| puzzle.to_original_values[page])
         .sum()
 }
 
-pub fn part_1_rayon((orderings, updates): &(Vec<(u32, u32)>, Vec<Vec<u32>>)) -> u32 {
-    let orderings = orderings.iter().copied().collect::<HashSet<_>>();
-    updates
-        .par_iter()
-        .filter(|&update| {
-            let rule_sort = rule_topo_sort(update, &orderings);
-            rule_sort == *update
-        })
-        .map(|update| update[update.len() / 2])
-        .sum()
-}
-
-pub fn part_2((orderings, updates): &(Vec<(u32, u32)>, Vec<Vec<u32>>)) -> u32 {
-    let orderings = orderings.iter().copied().collect::<HashSet<_>>();
-    updates
+pub fn part_2(puzzle: &Puzzle) -> u32 {
+    puzzle
+        .updates
         .iter()
         .filter_map(|update| {
-            let rule_sort = rule_topo_sort(update, &orderings);
-            if rule_sort == *update {
+            if rule_is_sorted(update, &puzzle) {
                 None
             } else {
-                Some(rule_sort)
+                Some(rule_topo_sort(update, &puzzle))
             }
         })
         .map(|update| update[update.len() / 2])
+        .map(|page| puzzle.to_original_values[page])
         .sum()
 }
 
-pub fn part_2_rayon((orderings, updates): &(Vec<(u32, u32)>, Vec<Vec<u32>>)) -> u32 {
-    let orderings = orderings.iter().copied().collect::<HashSet<_>>();
-    updates
+pub fn part_2_rayon(puzzle: &Puzzle) -> u32 {
+    puzzle
+        .updates
         .par_iter()
         .filter_map(|update| {
-            let rule_sort = rule_topo_sort(update, &orderings);
-            if rule_sort == *update {
+            if rule_is_sorted(update, &puzzle) {
                 None
             } else {
-                Some(rule_sort)
+                Some(rule_topo_sort(update, &puzzle))
             }
         })
         .map(|update| update[update.len() / 2])
+        .map(|page| puzzle.to_original_values[page])
         .sum()
 }
 
