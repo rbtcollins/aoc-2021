@@ -65,7 +65,7 @@ pub fn part_2(input: &str) -> usize {
         .0 as usize
 }
 
-pub fn part1_fold(input: &str) -> usize {
+pub fn part_1_fold(input: &str) -> usize {
     let op = alt((
         seq! (
            _: "mul(",
@@ -82,7 +82,7 @@ pub fn part1_fold(input: &str) -> usize {
         .unwrap() as usize
 }
 
-pub fn part2_fold(_input: &str) -> usize {
+pub fn part_2_fold(_input: &str) -> usize {
     0
     // parse_ops(input)
     //     .into_iter()
