@@ -2,8 +2,6 @@ use std::collections::HashMap;
 
 use pathfinding::directed::topological_sort::topological_sort;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator as _};
-use tracing_forest::ForestLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use winnow::{
     ascii::{dec_uint, newline},
     combinator::{opt, repeat, separated, separated_pair, terminated},
@@ -14,19 +12,13 @@ use winnow::{
 pub type Pages = u64;
 
 pub struct Puzzle {
-    // orderings: Vec<(u32, u32)>,
     updates: Vec<Vec<usize>>,
+    predecessors: [Pages; 64],
     successors: [Pages; 64],
     to_original_values: [u32; 64],
 }
 
 pub fn generate(input: &str) -> Puzzle {
-    color_eyre::install().unwrap();
-    Registry::default()
-        .with(ForestLayer::default())
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
     let page = dec_uint::<_, u32, ContextError>;
     let order = terminated(separated_pair(page, "|", page), newline);
     let orders = repeat(1.., order);
@@ -70,8 +62,10 @@ pub fn generate(input: &str) -> Puzzle {
         .collect::<Vec<_>>();
 
     let mut successors = [0 as Pages; 64];
+    let mut predecessors = [0 as Pages; 64];
     for &(a, b) in orderings.iter() {
         successors[a] |= 1 << b;
+        predecessors[b] |= 1 << a;
     }
 
     // remap page values to fit in a u64 for use in bitsets.
@@ -79,6 +73,7 @@ pub fn generate(input: &str) -> Puzzle {
         // orderings,
         updates,
         successors,
+        predecessors,
         to_original_values,
     }
 }
@@ -122,6 +117,38 @@ fn rule_is_sorted(update: &Vec<usize>, puzzle: &Puzzle) -> bool {
     return true;
 }
 
+fn sorted_update_mid(update: &Vec<usize>, puzzle: &Puzzle) -> Option<u32> {
+    if rule_is_sorted(update, &puzzle) {
+        None
+    } else {
+        let mut sorted = update.clone();
+        let mut involved: Pages = 0;
+        for page in update {
+            involved |= 1 << page;
+        }
+        let mut seen: Pages = 0;
+        let mid_point = update.len() / 2;
+        for i in 0..=mid_point {
+            // element i is sorted if seen | predecessors == seen
+            let page = sorted[i];
+            let predecessors = puzzle.predecessors[page] & involved;
+            if predecessors | seen != seen {
+                //swap with first sorted element
+                for j in i + 1..sorted.len() {
+                    let page = sorted[j];
+                    let predecessors = puzzle.predecessors[page] & involved;
+                    if predecessors | seen == seen {
+                        sorted.swap(i, j);
+                        break;
+                    }
+                }
+            }
+            seen |= 1 << sorted[i];
+        }
+        Some(puzzle.to_original_values[sorted[mid_point]])
+    }
+}
+
 pub fn part_1(puzzle: &Puzzle) -> u32 {
     puzzle
         .updates
@@ -149,15 +176,7 @@ pub fn part_2(puzzle: &Puzzle) -> u32 {
     puzzle
         .updates
         .iter()
-        .filter_map(|update| {
-            if rule_is_sorted(update, &puzzle) {
-                None
-            } else {
-                Some(rule_topo_sort(update, &puzzle))
-            }
-        })
-        .map(|update| update[update.len() / 2])
-        .map(|page| puzzle.to_original_values[page])
+        .filter_map(|update| sorted_update_mid(update, puzzle))
         .sum()
 }
 
@@ -165,15 +184,7 @@ pub fn part_2_rayon(puzzle: &Puzzle) -> u32 {
     puzzle
         .updates
         .par_iter()
-        .filter_map(|update| {
-            if rule_is_sorted(update, &puzzle) {
-                None
-            } else {
-                Some(rule_topo_sort(update, &puzzle))
-            }
-        })
-        .map(|update| update[update.len() / 2])
-        .map(|page| puzzle.to_original_values[page])
+        .filter_map(|update| sorted_update_mid(update, puzzle))
         .sum()
 }
 
@@ -182,9 +193,7 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_part_1() {
-        let input = r#"29|13
+    const INPUT: &str = r#"29|13
 47|13
 47|29
 47|53
@@ -212,7 +221,16 @@ mod tests {
 75,97,47,61,53
 61,13,29
 97,13,75,29,47"#;
-        let input = generate(input);
+
+    #[test]
+    fn test_part_1() {
+        let input = generate(INPUT);
         assert_eq!(part_1(&input), 143);
+    }
+
+    #[test]
+    fn test_part_2() {
+        let input = generate(INPUT);
+        assert_eq!(part_2(&input), 123);
     }
 }
