@@ -1,3 +1,4 @@
+use core::str;
 use std::{
     collections::VecDeque,
     fmt::Debug,
@@ -219,10 +220,80 @@ pub fn part_2(puzzle: &Puzzle) -> usize {
     let unique_positions = positions.into_iter().sorted().dedup().collect::<Vec<_>>();
     // dbg!(puzzle);
 
+    let render = RenderMap {
+        puzzle: puzzle.clone(),
+    };
+
+    App::new().run(|cx: &mut AppContext| {
+        let options = WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(
+                Bounds::maximized(None, cx).inset(px(50.)),
+                //     Bounds::centered(
+                //     None,
+                //     size(px(max.y as f32), px(max.y as f32)),
+                //     cx,
+                // )
+            )),
+            ..Default::default()
+        };
+        cx.open_window(options, |cx| {
+            cx.activate(false);
+            cx.new_view(|_cx| render)
+        })
+        .unwrap();
+    });
+
     unique_positions
         .par_iter()
         .filter(|&&obstruction| simulate_blockage(limit, puzzle.clone(), obstruction))
         .count()
+}
+
+use gpui::*;
+
+struct RenderMap {
+    puzzle: Puzzle,
+}
+
+impl Render for RenderMap {
+    fn render(&mut self, _cx: &mut ViewContext<Self>) -> impl IntoElement {
+        // Or perhaps ...
+        // RenderImage::new()
+        //     .with_animation(
+        //         "image_circle",
+        //         Animation::new(Duration::from_secs(2))
+        //             .repeat()
+        //             .with_easing(bounce(ease_in_out)),
+        //         |img, delta| {
+        //             img.with_transformation(Transformation::rotate(percentage(delta)))
+        //         },
+        //     )
+        //     .with_image("image_circle")
+        // _cx.paint_image(bounds, corner_radii, data, frame_index, grayscale)
+        // let f = font("monospace");
+        let mut e = div()
+            .flex()
+            .flex_col()
+            .bg(rgb(0x0))
+            .items_center()
+            .border(px(0.))
+            .m(px(0.))
+            .p(px(0.))
+            .text_size(px(6.))
+            .text_color(rgb(0xccfcf))
+            .font_family("Consolas");
+        for row in &self.puzzle.map {
+            e = e.child(format!("{}", unsafe { str::from_utf8_unchecked(row) }));
+        }
+        div().flex().flex_row().size_full().justify_around().child(
+            div()
+                .flex()
+                .flex_col()
+                .size_full()
+                .justify_around()
+                .child(e),
+        )
+    }
 }
 
 #[cfg(test)]
