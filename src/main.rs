@@ -3,6 +3,7 @@ mod day2;
 mod day3;
 mod day4;
 mod day5;
+mod day6;
 
 aoc_main::main! {
     year 2024;
@@ -11,4 +12,5 @@ aoc_main::main! {
     day3 : generate => part_1, part_2, part_1_fold, part_2_fold;
     day4 : generate => part_1, part_2, part_1_rayon, part_2_rayon;
     day5 : generate => part_1, part_2, part_1_rayon, part_2_rayon;
+    day6 : generate => part_1, part_2;
 }
