@@ -224,24 +224,26 @@ pub fn part_2(puzzle: &Puzzle) -> usize {
         puzzle: puzzle.clone(),
     };
 
-    App::new().run(|cx: &mut AppContext| {
-        let options = WindowOptions {
-            window_bounds: Some(WindowBounds::Windowed(
-                Bounds::maximized(None, cx).inset(px(50.)),
-                //     Bounds::centered(
-                //     None,
-                //     size(px(max.y as f32), px(max.y as f32)),
-                //     cx,
-                // )
-            )),
-            ..Default::default()
-        };
-        cx.open_window(options, |cx| {
-            cx.activate(false);
-            cx.new_view(|_cx| render)
-        })
-        .unwrap();
-    });
+    if std::env::var("VISUALISE").is_ok() {
+        App::new().run(|cx: &mut AppContext| {
+            let options = WindowOptions {
+                window_bounds: Some(WindowBounds::Windowed(
+                    Bounds::maximized(None, cx).inset(px(50.)),
+                    //     Bounds::centered(
+                    //     None,
+                    //     size(px(max.y as f32), px(max.y as f32)),
+                    //     cx,
+                    // )
+                )),
+                ..Default::default()
+            };
+            cx.open_window(options, |cx| {
+                cx.activate(false);
+                cx.new_view(|_cx| render)
+            })
+            .unwrap();
+        });
+    }
 
     unique_positions
         .par_iter()
@@ -298,7 +300,7 @@ impl Render for RenderMap {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{generate, part_1, part_2};
 
     const INPUT: &str = r#"....#.....
 .........#
