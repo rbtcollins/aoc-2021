@@ -14,5 +14,5 @@ aoc_main::main! {
     day4 : generate => part_1, part_2, part_1_rayon, part_2_rayon;
     day5 : generate => part_1, part_2, part_1_rayon, part_2_rayon;
     day6 : generate => part_1, part_2;
-    day7 : generate => part_1, part_2;
+    day7 : generate => part_1, part_1_from_end, part_2, part_2_from_end;
 }
