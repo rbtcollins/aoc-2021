@@ -16,6 +16,7 @@ enum-utils = "0.1.2"
 gpui = { git = "https://github.com/zed-industries/zed" }
 itertools = "0.13.0"
 lending-iterator = "0.1.7"
+num = "0.4.3"
 pathfinding = "4.11.0"
 peg = "0.8.4"
 petgraph = "0.6.5"

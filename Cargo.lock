@@ -161,6 +161,7 @@ dependencies = [
  "gpui",
  "itertools 0.13.0",
  "lending-iterator",
+ "num",
  "pathfinding",
  "peg",
  "petgraph",
